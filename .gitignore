@@ -1,0 +1,10 @@
+# Environment files with secrets
+*.env
+!*.env.example
+
+# Profile files with secrets
+hermes-profiles.yaml
+!hermes-profiles.yaml.example
+
+# Data directories
+dockered-hermes/
