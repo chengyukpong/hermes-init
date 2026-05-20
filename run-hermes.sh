@@ -109,7 +109,7 @@ cmd_setup() {
   podman run -it --rm \
     --name "${name}-setup" \
     --volume "${DATA_DIR}:/opt/data" \
-    --env-file "$ENV_FILE" \
+    --volume "${ENV_FILE}:/opt/data/.env:ro" \
     --env "HERMES_UID=$(id -u)" \
     --env "HERMES_GID=$(id -g)" \
     ${env_flags} \
@@ -144,6 +144,7 @@ cmd_start() {
     --cpus="$CPU" \
     --memory="$MEMORY" \
     --volume "${DATA_DIR}:/opt/data" \
+    --volume "${ENV_FILE}:/opt/data/.env:ro" \
     --publish "${GATEWAY_PORT}:8642" \
     --publish "${DASHBOARD_PORT}:9119" \
     --env HERMES_DASHBOARD=1 \
@@ -180,7 +181,7 @@ cmd_chat() {
   podman run -it --rm \
     --name "${name}-chat" \
     --volume "${DATA_DIR}:/opt/data" \
-    --env-file "$ENV_FILE" \
+    --volume "${ENV_FILE}:/opt/data/.env:ro" \
     --env "HERMES_UID=$(id -u)" \
     --env "HERMES_GID=$(id -g)" \
     ${env_flags} \
