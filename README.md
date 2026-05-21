@@ -6,11 +6,13 @@ Run [Hermes Agent](https://github.com/NousResearch/hermes-agent) in containers u
 
 - Preconfigured with DeepSeek V4 Flash as main model
 - Xiaomi MiMo v2.5 for vision auxiliary tasks
+- Feishu/Lark gateway support
 - lark-cli preinstalled
 - Dashboard enabled by default
 - Multiple instance support via profiles
 - Configurable resource limits (CPU, memory)
 - Per-profile environment variables
+- All config via environment variables (no config.yaml needed)
 
 ## Requirements
 
@@ -58,18 +60,35 @@ vim hermes-profiles.yaml
 
 ## Configuration
 
+All configuration is via environment variables in `hermes.env`. No `config.yaml` needed.
+
 ### hermes.env
 
-Shared environment variables (API keys):
-
-```
+```bash
+# Main model - DeepSeek V4 Flash
+HERMES_INFERENCE_PROVIDER=deepseek
+HERMES_INFERENCE_MODEL=deepseek-v4-flash
 DEEPSEEK_API_KEY=your-deepseek-key
-XIAOMI_API_KEY=your-xiaomi-key
+
+# Auxiliary vision model - Xiaomi MiMo v2.5
+AUXILIARY_VISION_PROVIDER=xiaomi
+AUXILIARY_VISION_MODEL=mimo-v2.5
+AUXILIARY_VISION_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1
+AUXILIARY_VISION_API_KEY=your-xiaomi-key
+
+# Feishu/Lark gateway
+FEISHU_APP_ID=your-feishu-app-id
+FEISHU_APP_SECRET=your-feishu-app-secret
+FEISHU_DOMAIN=lark
+FEISHU_CONNECTION_MODE=websocket
+
+# Terminal backend
+TERMINAL_ENV=local
 ```
 
 ### hermes-profiles.yaml
 
-Instance definitions:
+Instance definitions with per-profile env vars:
 
 ```yaml
 defaults:
@@ -82,12 +101,54 @@ profiles:
     gateway_port: 8642
     dashboard_port: 9119
     env:
-      LARK_APP_ID: your-lark-app-id
-      LARK_APP_SECRET: your-lark-app-secret
+      FEISHU_APP_ID: your-feishu-app-id
+      FEISHU_APP_SECRET: your-feishu-app-secret
+  hermes-2:
+    gateway_port: 8643
+    dashboard_port: 9120
+    env:
+      FEISHU_APP_ID: your-feishu-app-id
+      FEISHU_APP_SECRET: your-feishu-app-secret
 ```
 
 - Data directories default to `~/dockered-hermes/.<profile-name>`
-- Profile env vars override shared hermes.env
+- Profile env vars override shared `hermes.env`
+- `gateway_port` and `dashboard_port` are host port mappings (container internal ports are always 8642 and 9119)
+
+## Environment Variables Reference
+
+### Main Model
+
+| Variable | Description |
+|----------|-------------|
+| `HERMES_INFERENCE_PROVIDER` | Provider name (e.g., `deepseek`) |
+| `HERMES_INFERENCE_MODEL` | Model name (e.g., `deepseek-v4-flash`) |
+| `DEEPSEEK_API_KEY` | DeepSeek API key |
+| `DEEPSEEK_BASE_URL` | Override DeepSeek base URL (optional) |
+
+### Auxiliary Vision Model
+
+| Variable | Description |
+|----------|-------------|
+| `AUXILIARY_VISION_PROVIDER` | Provider name (e.g., `xiaomi`) |
+| `AUXILIARY_VISION_MODEL` | Model name (e.g., `mimo-v2.5`) |
+| `AUXILIARY_VISION_BASE_URL` | Custom endpoint URL |
+| `AUXILIARY_VISION_API_KEY` | API key for the endpoint |
+
+### Feishu/Lark Gateway
+
+| Variable | Description |
+|----------|-------------|
+| `FEISHU_APP_ID` | Feishu/Lark bot App ID |
+| `FEISHU_APP_SECRET` | Feishu/Lark bot App Secret |
+| `FEISHU_DOMAIN` | `feishu` (China) or `lark` (international) |
+| `FEISHU_CONNECTION_MODE` | `websocket` (recommended) or `webhook` |
+
+### Terminal
+
+| Variable | Description |
+|----------|-------------|
+| `TERMINAL_ENV` | Backend: `local`, `docker`, `ssh`, etc. |
 
 ## Accessing Services
 
