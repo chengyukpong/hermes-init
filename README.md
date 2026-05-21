@@ -12,6 +12,7 @@ Run [Hermes Agent](https://github.com/NousResearch/hermes-agent) in containers u
 - Multiple instance support via profiles
 - Configurable resource limits (CPU, memory)
 - Per-profile environment variables
+- Per-profile SOUL.md initialization
 - All config via environment variables (no config.yaml needed)
 
 ## Requirements
@@ -32,16 +33,19 @@ vim hermes.env
 # 3. Edit hermes-profiles.yaml with your instance configs
 vim hermes-profiles.yaml
 
-# 4. Build the custom image
+# 4. Create SOUL.md files (optional)
+vim souls/default.md
+
+# 5. Build the custom image
 ./run-hermes.sh build
 
-# 5. Setup an instance
+# 6. Setup an instance
 ./run-hermes.sh setup hermes-1
 
-# 6. Start the instance
+# 7. Start the instance
 ./run-hermes.sh start hermes-1
 
-# 7. Check status
+# 8. Check status
 ./run-hermes.sh list
 ```
 
@@ -50,7 +54,7 @@ vim hermes-profiles.yaml
 | Command | Description |
 |---------|-------------|
 | `build` | Build custom image with lark-cli |
-| `setup <name>` | First-time interactive setup |
+| `setup <name>` | First-time interactive setup (copies SOUL.md if specified) |
 | `start <name>` | Start gateway + dashboard |
 | `stop <name>` | Stop a running container |
 | `chat <name>` | Open interactive CLI |
@@ -88,7 +92,7 @@ TERMINAL_ENV=local
 
 ### hermes-profiles.yaml
 
-Instance definitions with per-profile env vars:
+Instance definitions with per-profile env vars and SOUL:
 
 ```yaml
 defaults:
@@ -100,12 +104,14 @@ profiles:
   hermes-1:
     gateway_port: 8642
     dashboard_port: 9119
+    soul: ./souls/default.md
     env:
       FEISHU_APP_ID: your-feishu-app-id
       FEISHU_APP_SECRET: your-feishu-app-secret
   hermes-2:
     gateway_port: 8643
     dashboard_port: 9120
+    soul: ./souls/default.md
     env:
       FEISHU_APP_ID: your-feishu-app-id
       FEISHU_APP_SECRET: your-feishu-app-secret
@@ -114,6 +120,19 @@ profiles:
 - Data directories default to `~/dockered-hermes/.<profile-name>`
 - Profile env vars override shared `hermes.env`
 - `gateway_port` and `dashboard_port` are host port mappings (container internal ports are always 8642 and 9119)
+- `soul` is optional — if specified, the file is copied to `SOUL.md` in the data directory during setup
+
+### SOUL.md
+
+The `soul` field in `hermes-profiles.yaml` points to a file that becomes the agent's identity (`/opt/data/SOUL.md` inside the container). This is written once during `setup`, not on every `start`.
+
+Example `souls/default.md`:
+
+```markdown
+You are a helpful AI assistant.
+
+Be concise and professional in your responses.
+```
 
 ## Environment Variables Reference
 

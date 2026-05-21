@@ -101,6 +101,18 @@ cmd_setup() {
   mkdir -p "$DATA_DIR"
   chmod 777 "$DATA_DIR"
 
+  # Copy SOUL.md if specified in profile
+  local soul_file
+  soul_file=$(profile_field "$name" "soul" "")
+  if [[ -n "$soul_file" ]]; then
+    if [[ -f "$soul_file" ]]; then
+      cp "$soul_file" "${DATA_DIR}/SOUL.md"
+      echo "SOUL.md initialized from ${soul_file}"
+    else
+      echo "Warning: SOUL file not found: ${soul_file}"
+    fi
+  fi
+
   local env_flags
   env_flags=$(build_env_flags "$name")
 
