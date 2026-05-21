@@ -1,13 +1,2 @@
-model:
-  provider: deepseek
-  default: deepseek-v4-flash
-
-auxiliary:
-  vision:
-    provider: xiaomi
-    model: mimo-v2.5
-    base_url: https://token-plan-sgp.xiaomimimo.com/v1
-    api_key: ${XIAOMI_API_KEY}
-
 terminal:
   backend: local
