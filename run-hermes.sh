@@ -101,11 +101,6 @@ cmd_setup() {
   mkdir -p "$DATA_DIR"
   chmod 777 "$DATA_DIR"
 
-  # Copy shared env file to data dir as .env (Hermes reads from /opt/data/.env)
-  if [[ -f "$ENV_FILE" ]]; then
-    cp "$ENV_FILE" "${DATA_DIR}/.env"
-  fi
-
   local env_flags
   env_flags=$(build_env_flags "$name")
 
@@ -114,6 +109,7 @@ cmd_setup() {
   podman run -it --rm \
     --name "${name}-setup" \
     --volume "${DATA_DIR}:/opt/data" \
+    --env-file "$ENV_FILE" \
     --env "HERMES_UID=$(id -u)" \
     --env "HERMES_GID=$(id -g)" \
     ${env_flags} \
@@ -136,11 +132,6 @@ cmd_start() {
 
   mkdir -p "$DATA_DIR"
   chmod 777 "$DATA_DIR"
-
-  # Copy shared env file to data dir as .env (Hermes reads from /opt/data/.env)
-  if [[ -f "$ENV_FILE" ]]; then
-    cp "$ENV_FILE" "${DATA_DIR}/.env"
-  fi
 
   local env_flags
   env_flags=$(build_env_flags "$name")
@@ -181,11 +172,6 @@ cmd_chat() {
   mkdir -p "$DATA_DIR"
   chmod 777 "$DATA_DIR"
 
-  # Copy shared env file to data dir as .env (Hermes reads from /opt/data/.env)
-  if [[ -f "$ENV_FILE" ]]; then
-    cp "$ENV_FILE" "${DATA_DIR}/.env"
-  fi
-
   local env_flags
   env_flags=$(build_env_flags "$name")
 
@@ -194,6 +180,7 @@ cmd_chat() {
   podman run -it --rm \
     --name "${name}-chat" \
     --volume "${DATA_DIR}:/opt/data" \
+    --env-file "$ENV_FILE" \
     --env "HERMES_UID=$(id -u)" \
     --env "HERMES_GID=$(id -g)" \
     ${env_flags} \
