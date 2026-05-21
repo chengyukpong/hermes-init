@@ -49,6 +49,9 @@ vim souls/default.md
 ./run-hermes.sh list
 ```
 
+## After init action
+帮我安装飞书 CLI：https://open.feishu.cn/document/no_class/mcp-archive/feishu-cli-installation-guide.md
+
 ## Commands
 
 | Command | Description |
