@@ -1,2 +1,1 @@
-terminal:
-  backend: local
+# All configuration is via environment variables in hermes.env
