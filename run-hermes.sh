@@ -80,9 +80,10 @@ lookup_secret() {
   echo "$val"
 }
 
-resolve_env_file() {
-  if [[ ! -f "$ENV_FILE" ]]; then
-    die "Env file not found: ${ENV_FILE}"
+resolve_placeholders() {
+  local src_file="$1"
+  if [[ ! -f "$src_file" ]]; then
+    die "File not found: ${src_file}"
   fi
   if [[ ! -f "$SECRET_FILE" ]]; then
     die "Secret file not found: ${SECRET_FILE}"
@@ -108,11 +109,11 @@ resolve_env_file() {
       resolved="${resolved//\$\{${key}\}/${val}}"
     done
     echo "$resolved" >> "$tmpfile"
-  done < "$ENV_FILE"
+  done < "$src_file"
 
   if [[ "$unresolved" -eq 1 ]]; then
     rm -f "$tmpfile"
-    die "Unresolved placeholders in ${ENV_FILE}. Check ${SECRET_FILE}."
+    die "Unresolved placeholders in ${src_file}. Check ${SECRET_FILE}."
   fi
 
   echo "$tmpfile"
@@ -121,19 +122,29 @@ resolve_env_file() {
 build_env_flags() {
   local profile="$1"
   local flags=""
-  local resolved_env
-  resolved_env=$(resolve_env_file)
-  flags="--env-file ${resolved_env}"
 
-  # Profile-specific secret vars
-  local sv_count
-  sv_count=$(yq eval ".profiles.${profile}.secret_vars | length // 0" "$PROFILES_FILE" 2>/dev/null || echo "0")
-  if [[ "$sv_count" -gt 0 ]]; then
-    while IFS='=' read -r env_var secret_key; do
-      local secret_val
-      secret_val=$(lookup_secret "$secret_key")
-      flags="${flags} -e ${env_var}=${secret_val}"
-    done < <(yq eval ".profiles.${profile}.secret_vars | to_entries[] | \"\(.key)=\(.value)\"" "$PROFILES_FILE" 2>/dev/null)
+  # Resolve shared env file (hermes.env with ${KEY} placeholders)
+  if [[ -f "$ENV_FILE" ]]; then
+    local resolved_env
+    resolved_env=$(resolve_placeholders "$ENV_FILE")
+    flags="--env-file ${resolved_env}"
+  fi
+
+  # Profile-specific env vars with ${KEY} placeholder resolution
+  local env_count
+  env_count=$(yq eval ".profiles.${profile}.env | length // 0" "$PROFILES_FILE" 2>/dev/null || echo "0")
+  if [[ "$env_count" -gt 0 ]]; then
+    while IFS='=' read -r key value; do
+      local resolved_val="$value"
+      local placeholders
+      placeholders=$(grep -oP '\$\{\K[^}]+' <<< "$value" || true)
+      for secret_key in $placeholders; do
+        local secret_val
+        secret_val=$(lookup_secret "$secret_key")
+        resolved_val="${resolved_val//\$\{${secret_key}\}/${secret_val}}"
+      done
+      flags="${flags} -e ${key}=${resolved_val}"
+    done < <(yq eval ".profiles.${profile}.env | to_entries[] | \"\(.key)=\(.value)\"" "$PROFILES_FILE" 2>/dev/null)
   fi
 
   echo "$flags"

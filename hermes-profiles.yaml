@@ -21,7 +21,7 @@ profiles:
   sophie-bot:
     gateway_port: 8643
     dashboard_port: 9120
-    soul: ./souls/sophie.md
+    soul: ./souls/bird.md
     env:
       FEISHU_APP_ID: cli_aa8464e3a138de17
       FEISHU_APP_SECRET: ${SOPHIE_FEISHU_APP_SECRET}
