@@ -122,15 +122,13 @@ resolve_placeholders() {
 build_env_flags() {
   local profile="$1"
   local flags=""
+  local resolved_env=""
 
-  # Resolve shared env file (hermes.env with ${KEY} placeholders)
   if [[ -f "$ENV_FILE" ]]; then
-    local resolved_env
     resolved_env=$(resolve_placeholders "$ENV_FILE")
     flags="--env-file ${resolved_env}"
   fi
 
-  # Profile-specific env vars with ${KEY} placeholder resolution
   local env_count
   env_count=$(yq eval ".profiles.${profile}.env | length // 0" "$PROFILES_FILE" 2>/dev/null || echo "0")
   if [[ "$env_count" -gt 0 ]]; then
@@ -148,6 +146,37 @@ build_env_flags() {
   fi
 
   echo "$flags"
+}
+
+build_merged_env_file() {
+  local profile="$1"
+  local tmpfile
+  tmpfile=$(mktemp)
+  TEMP_FILES+=("$tmpfile")
+
+  if [[ -f "$ENV_FILE" ]]; then
+    local resolved_env
+    resolved_env=$(resolve_placeholders "$ENV_FILE")
+    grep -v '^\s*$\|^\s*#' "$resolved_env" >> "$tmpfile" 2>/dev/null || true
+  fi
+
+  local env_count
+  env_count=$(yq eval ".profiles.${profile}.env | length // 0" "$PROFILES_FILE" 2>/dev/null || echo "0")
+  if [[ "$env_count" -gt 0 ]]; then
+    while IFS='=' read -r key value; do
+      local resolved_val="$value"
+      local placeholders
+      placeholders=$(grep -oP '\$\{\K[^}]+' <<< "$value" || true)
+      for secret_key in $placeholders; do
+        local secret_val
+        secret_val=$(lookup_secret "$secret_key")
+        resolved_val="${resolved_val//\$\{${secret_key}\}/${secret_val}}"
+      done
+      echo "${key}=${resolved_val}" >> "$tmpfile"
+    done < <(yq eval ".profiles.${profile}.env | to_entries[] | \"\(.key)=\(.value)\"" "$PROFILES_FILE" 2>/dev/null)
+  fi
+
+  echo "$tmpfile"
 }
 
 # ---------------------------------------------------------------------------
@@ -205,6 +234,19 @@ cmd_setup() {
       echo "Warning: SOUL file not found: ${soul_file}"
     fi
   fi
+
+  # Write resolved env vars to /opt/data/.env inside container
+  local merged_env
+  merged_env=$(build_merged_env_file "$name")
+  # shellcheck disable=SC2086
+  podman run --rm \
+    --volume "${DATA_DIR}:/opt/data" \
+    --volume "${merged_env}:/opt/env-src:ro" \
+    --env "HERMES_UID=$(id -u)" \
+    --env "HERMES_GID=$(id -g)" \
+    "$IMAGE_NAME" \
+    sh -c "cp /opt/env-src /opt/data/.env"
+  echo "Environment written to ${DATA_DIR}/.env"
 }
 
 cmd_start() {
