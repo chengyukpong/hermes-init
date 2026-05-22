@@ -3,10 +3,6 @@ defaults:
   memory: "1g"
   disk: "5g"
 
-shared_secrets:
-  - DEEPSEEK_API_KEY
-  - AUXILIARY_VISION_API_KEY
-
 profiles:
   nunu-bot:
     gateway_port: 8642

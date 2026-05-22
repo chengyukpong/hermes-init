@@ -15,6 +15,10 @@ DEFAULT_DATA_BASE="${HOME}/dockered-hermes"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
+TEMP_FILES=()
+cleanup_temp_files() { rm -f "${TEMP_FILES[@]}"; }
+trap cleanup_temp_files EXIT
+
 check_deps() {
   for cmd in yq podman; do
     command -v "$cmd" &>/dev/null || die "'$cmd' is required but not found in PATH"
@@ -76,26 +80,50 @@ lookup_secret() {
   echo "$val"
 }
 
+resolve_env_file() {
+  if [[ ! -f "$ENV_FILE" ]]; then
+    die "Env file not found: ${ENV_FILE}"
+  fi
+  if [[ ! -f "$SECRET_FILE" ]]; then
+    die "Secret file not found: ${SECRET_FILE}"
+  fi
+
+  local tmpfile
+  tmpfile=$(mktemp)
+  TEMP_FILES+=("$tmpfile")
+  local unresolved=0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" || "$line" == \#* ]] && echo "$line" >> "$tmpfile" && continue
+    local resolved="$line"
+    local placeholders
+    placeholders=$(grep -oP '\$\{\K[^}]+' <<< "$line" || true)
+    for key in $placeholders; do
+      local val
+      if ! val=$(lookup_secret "$key" 2>/dev/null); then
+        echo "ERROR: Secret '${key}' not found in ${SECRET_FILE}" >&2
+        unresolved=1
+        val="UNRESOLVED_${key}"
+      fi
+      resolved="${resolved//\$\{${key}\}/${val}}"
+    done
+    echo "$resolved" >> "$tmpfile"
+  done < "$ENV_FILE"
+
+  if [[ "$unresolved" -eq 1 ]]; then
+    rm -f "$tmpfile"
+    die "Unresolved placeholders in ${ENV_FILE}. Check ${SECRET_FILE}."
+  fi
+
+  echo "$tmpfile"
+}
+
 build_env_flags() {
   local profile="$1"
   local flags=""
-
-  # Shared env file (non-secret config)
-  if [[ -f "$ENV_FILE" ]]; then
-    flags="--env-file ${ENV_FILE}"
-  fi
-
-  # Shared secrets listed in hermes-profiles.yaml under shared_secrets
-  local shared_count
-  shared_count=$(yq eval ".shared_secrets | length // 0" "$PROFILES_FILE" 2>/dev/null || echo "0")
-  if [[ "$shared_count" -gt 0 && -f "$SECRET_FILE" ]]; then
-    local secret_key
-    for secret_key in $(yq eval ".shared_secrets[]" "$PROFILES_FILE" 2>/dev/null); do
-      local secret_val
-      secret_val=$(lookup_secret "$secret_key")
-      flags="${flags} -e ${secret_key}=${secret_val}"
-    done
-  fi
+  local resolved_env
+  resolved_env=$(resolve_env_file)
+  flags="--env-file ${resolved_env}"
 
   # Profile-specific secret vars
   local sv_count
