@@ -174,8 +174,21 @@ cmd_setup() {
   local soul_file
   soul_file=$(profile_field "$name" "soul" "")
   if [[ -n "$soul_file" ]]; then
-    if [[ -f "$soul_file" ]]; then
-      cp "$soul_file" "${DATA_DIR}/SOUL.md"
+    local soul_abs
+    soul_abs=$(cd "$(dirname "$soul_file")" && pwd)/$(basename "$soul_file")
+    if [[ -f "$soul_abs" ]]; then
+      local soul_dir soul_basename
+      soul_dir=$(dirname "$soul_abs")
+      soul_basename=$(basename "$soul_abs")
+      # Copy via container to ensure correct ownership
+      # shellcheck disable=SC2086
+      podman run --rm \
+        --volume "${DATA_DIR}:/opt/data" \
+        --volume "${soul_dir}:/opt/soul-src:ro" \
+        --env "HERMES_UID=$(id -u)" \
+        --env "HERMES_GID=$(id -g)" \
+        "$IMAGE_NAME" \
+        sh -c "cp /opt/soul-src/${soul_basename} /opt/data/SOUL.md"
       echo "SOUL.md initialized from ${soul_file}"
     else
       echo "Warning: SOUL file not found: ${soul_file}"
