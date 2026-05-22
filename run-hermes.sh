@@ -309,10 +309,17 @@ cmd_delete() {
     podman rm "$name" >/dev/null 2>&1 || true
   fi
 
-  # Remove data directory
+  # Remove data directory via container (files owned by container user)
   if [[ -d "$DATA_DIR" ]]; then
     echo "Removing data directory '${DATA_DIR}'..."
-    rm -rf "$DATA_DIR"
+    local parent_dir
+    parent_dir=$(dirname "$DATA_DIR")
+    local dir_basename
+    dir_basename=$(basename "$DATA_DIR")
+    podman run --rm \
+      --volume "${parent_dir}:/opt/data-parent" \
+      "$IMAGE_NAME" \
+      sh -c "rm -rf /opt/data-parent/${dir_basename}"
   fi
 
   echo "Profile '${name}' deleted."
