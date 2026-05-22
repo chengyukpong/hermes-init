@@ -317,6 +317,7 @@ cmd_delete() {
     local dir_basename
     dir_basename=$(basename "$DATA_DIR")
     podman run --rm \
+      --user root \
       --volume "${parent_dir}:/opt/data-parent" \
       "$IMAGE_NAME" \
       sh -c "rm -rf /opt/data-parent/${dir_basename}"
