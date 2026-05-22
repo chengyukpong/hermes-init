@@ -240,12 +240,13 @@ cmd_setup() {
   merged_env=$(build_merged_env_file "$name")
   # shellcheck disable=SC2086
   podman run --rm \
+    --user root \
     --volume "${DATA_DIR}:/opt/data" \
     --volume "${merged_env}:/opt/env-src:ro" \
     --env "HERMES_UID=$(id -u)" \
     --env "HERMES_GID=$(id -g)" \
     "$IMAGE_NAME" \
-    sh -c "cp /opt/env-src /opt/data/.env"
+    sh -c "cp /opt/env-src /opt/data/.env && chown \${HERMES_UID}:\${HERMES_GID} /opt/data/.env"
   echo "Environment written to ${DATA_DIR}/.env"
 }
 
