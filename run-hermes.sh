@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROFILES_FILE="${SCRIPT_DIR}/hermes-profiles.yaml"
 ENV_FILE="${SCRIPT_DIR}/hermes.env"
-SECRET_FILE="${SCRIPT_DIR}/.secret"
+SECRET_FILE="${SCRIPT_DIR}/.env"
 IMAGE_NAME="hermes-custom"
 BASE_IMAGE="nousresearch/hermes-agent:latest"
 DEFAULT_DATA_BASE="${HOME}/dockered-hermes"
@@ -70,7 +70,7 @@ resolve_profile() {
 lookup_secret() {
   local key="$1"
   if [[ ! -f "$SECRET_FILE" ]]; then
-    die "Secret file not found: ${SECRET_FILE}"
+    die "Env file not found: ${SECRET_FILE}"
   fi
   local val
   val=$(grep -E "^${key}=" "$SECRET_FILE" | head -1 | cut -d'=' -f2-)
@@ -86,7 +86,7 @@ resolve_placeholders() {
     die "File not found: ${src_file}"
   fi
   if [[ ! -f "$SECRET_FILE" ]]; then
-    die "Secret file not found: ${SECRET_FILE}"
+    die "Env file not found: ${SECRET_FILE}"
   fi
 
   local tmpfile
