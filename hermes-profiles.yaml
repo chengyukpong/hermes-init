@@ -8,13 +8,20 @@ profiles:
     gateway_port: 8642
     dashboard_port: 9119
     soul: ./souls/default.md
-    secret_vars:
-      FEISHU_APP_ID: NUNU_BOT_FEISHU_APP_ID
-      FEISHU_APP_SECRET: NUNU_BOT_FEISHU_APP_SECRET
+    env:
+      FEISHU_APP_ID: cli_aa8c0aa4ef0a9e15
+      FEISHU_APP_SECRET: ${NUNU_FEISHU_APP_SECRET}
   tina-bot:
     gateway_port: 8643
     dashboard_port: 9120
     soul: ./souls/default.md
-    secret_vars:
-      FEISHU_APP_ID: TINA_BOT_FEISHU_APP_ID
-      FEISHU_APP_SECRET: TINA_BOT_FEISHU_APP_SECRET
+    env:
+      FEISHU_APP_ID: cli_aa8c610108e11e17
+      FEISHU_APP_SECRET: ${TINA_FEISHU_APP_SECRET}
+  sophie-bot:
+    gateway_port: 8643
+    dashboard_port: 9120
+    soul: ./souls/sophie.md
+    env:
+      FEISHU_APP_ID: cli_aa8464e3a138de17
+      FEISHU_APP_SECRET: ${SOPHIE_FEISHU_APP_SECRET}
