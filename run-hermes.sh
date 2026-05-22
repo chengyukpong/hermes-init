@@ -297,6 +297,27 @@ cmd_stop() {
   echo "Done."
 }
 
+cmd_delete() {
+  local name="${1:?Usage: $0 delete <profile-name>}"
+  profile_exists "$name" || die "Profile '${name}' not found in ${PROFILES_FILE}"
+  resolve_profile "$name"
+
+  # Stop and remove container if it exists
+  if podman container exists "$name" 2>/dev/null; then
+    echo "Stopping and removing container '${name}'..."
+    podman stop "$name" >/dev/null 2>&1 || true
+    podman rm "$name" >/dev/null 2>&1 || true
+  fi
+
+  # Remove data directory
+  if [[ -d "$DATA_DIR" ]]; then
+    echo "Removing data directory '${DATA_DIR}'..."
+    rm -rf "$DATA_DIR"
+  fi
+
+  echo "Profile '${name}' deleted."
+}
+
 cmd_chat() {
   local name="${1:?Usage: $0 chat <profile-name>}"
   profile_exists "$name" || die "Profile '${name}' not found in ${PROFILES_FILE}"
@@ -388,6 +409,7 @@ Commands:
   setup  <profile-name>   First-time interactive setup
   start  <profile-name>   Start gateway + dashboard in background
   stop   <profile-name>   Stop a running container
+  delete <profile-name>   Stop container and delete data
   chat   <profile-name>   Open interactive CLI chat
   logs   <profile-name>   Tail container logs (optional: --tail N)
   update <profile-name>   Pull latest image + recreate
@@ -414,6 +436,7 @@ main() {
     setup)  check_deps; cmd_setup "$@" ;;
     start)  check_deps; cmd_start "$@" ;;
     stop)   command -v podman &>/dev/null || die "'podman' is required but not found in PATH"; cmd_stop "$@" ;;
+    delete) check_deps; cmd_delete "$@" ;;
     chat)   check_deps; cmd_chat "$@" ;;
     logs)   command -v podman &>/dev/null || die "'podman' is required but not found in PATH"; cmd_logs "$@" ;;
     update) check_deps; cmd_update "$@" ;;
