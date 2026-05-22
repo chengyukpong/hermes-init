@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROFILES_FILE="${SCRIPT_DIR}/hermes-profiles.yaml"
 ENV_FILE="${SCRIPT_DIR}/hermes.env"
+SECRET_FILE="${SCRIPT_DIR}/.secret"
 IMAGE_NAME="hermes-custom"
 BASE_IMAGE="nousresearch/hermes-agent:latest"
 DEFAULT_DATA_BASE="${HOME}/dockered-hermes"
@@ -62,22 +63,49 @@ resolve_profile() {
   if [[ -z "$DASHBOARD_PORT" ]]; then die "Profile '${name}' missing 'dashboard_port'"; fi
 }
 
+lookup_secret() {
+  local key="$1"
+  if [[ ! -f "$SECRET_FILE" ]]; then
+    die "Secret file not found: ${SECRET_FILE}"
+  fi
+  local val
+  val=$(grep -E "^${key}=" "$SECRET_FILE" | head -1 | cut -d'=' -f2-)
+  if [[ -z "$val" ]]; then
+    die "Secret '${key}' not found in ${SECRET_FILE}"
+  fi
+  echo "$val"
+}
+
 build_env_flags() {
   local profile="$1"
   local flags=""
 
-  # Shared env file (fallback)
+  # Shared env file (non-secret config)
   if [[ -f "$ENV_FILE" ]]; then
     flags="--env-file ${ENV_FILE}"
   fi
 
-  # Profile-specific env vars (override shared)
-  local env_count
-  env_count=$(yq eval ".profiles.${profile}.env | length // 0" "$PROFILES_FILE" 2>/dev/null || echo "0")
-  if [[ "$env_count" -gt 0 ]]; then
-    while IFS='=' read -r key value; do
-      flags="${flags} -e ${key}=${value}"
-    done < <(yq eval ".profiles.${profile}.env | to_entries[] | \"\(.key)=\(.value)\"" "$PROFILES_FILE" 2>/dev/null)
+  # Shared secrets listed in hermes-profiles.yaml under shared_secrets
+  local shared_count
+  shared_count=$(yq eval ".shared_secrets | length // 0" "$PROFILES_FILE" 2>/dev/null || echo "0")
+  if [[ "$shared_count" -gt 0 && -f "$SECRET_FILE" ]]; then
+    local secret_key
+    for secret_key in $(yq eval ".shared_secrets[]" "$PROFILES_FILE" 2>/dev/null); do
+      local secret_val
+      secret_val=$(lookup_secret "$secret_key")
+      flags="${flags} -e ${secret_key}=${secret_val}"
+    done
+  fi
+
+  # Profile-specific secret vars
+  local sv_count
+  sv_count=$(yq eval ".profiles.${profile}.secret_vars | length // 0" "$PROFILES_FILE" 2>/dev/null || echo "0")
+  if [[ "$sv_count" -gt 0 ]]; then
+    while IFS='=' read -r env_var secret_key; do
+      local secret_val
+      secret_val=$(lookup_secret "$secret_key")
+      flags="${flags} -e ${env_var}=${secret_val}"
+    done < <(yq eval ".profiles.${profile}.secret_vars | to_entries[] | \"\(.key)=\(.value)\"" "$PROFILES_FILE" 2>/dev/null)
   fi
 
   echo "$flags"
@@ -121,7 +149,6 @@ cmd_setup() {
   podman run -it --rm \
     --name "${name}-setup" \
     --volume "${DATA_DIR}:/opt/data" \
-    --env-file "$ENV_FILE" \
     --env "HERMES_UID=$(id -u)" \
     --env "HERMES_GID=$(id -g)" \
     ${env_flags} \
@@ -192,7 +219,6 @@ cmd_chat() {
   podman run -it --rm \
     --name "${name}-chat" \
     --volume "${DATA_DIR}:/opt/data" \
-    --env-file "$ENV_FILE" \
     --env "HERMES_UID=$(id -u)" \
     --env "HERMES_GID=$(id -g)" \
     ${env_flags} \
